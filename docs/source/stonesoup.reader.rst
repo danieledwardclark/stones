@@ -24,3 +24,8 @@ AISHub
 ------
 .. automodule:: stonesoup.reader.aishub
     :show-inheritance:
+
+OpenSky Network
+---------------
+.. automodule:: stonesoup.reader.opensky
+    :show-inheritance:
