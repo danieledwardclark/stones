@@ -14,7 +14,67 @@ from ..functions import gm_reduce_single
 from stonesoup.buffered_generator import BufferedGenerator
 
 
-class SingleTargetTracker(Tracker):
+class MultiTargetTracker(Tracker):
+    """A simple multi target tracker.
+
+    Track multiple objects using Stone Soup components. The tracker works by
+    first calling the :attr:`data_associator` with the active tracks, and then
+    either updating the track state with the result of the :attr:`updater` if
+    a detection is associated, or with the prediction if no detection is
+    associated to the track. Tracks are then checked for deletion by the
+    :attr:`deleter`, and remaining unassociated detections are passed to the
+    :attr:`initiator` to generate new tracks.
+
+    Parameters
+    ----------
+    """
+    initiator = Property(
+        Initiator,
+        doc="Initiator used to initialise the track.")
+    deleter = Property(
+        Deleter,
+        doc="Deleter used to delete the track.")
+    detector = Property(
+        DetectionReader,
+        doc="Detector used to generate detection objects.")
+    data_associator = Property(
+        DataAssociator,
+        doc="Association algorithm to pair predictions to detections")
+    updater = Property(
+        Updater,
+        doc="Updater used to update the track object to the new state.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def initiate_function(self, tracks, detections, **kwargs):
+        return self.initiator.initiate(detections, **kwargs)
+
+    @BufferedGenerator.generator_method
+    def tracks_gen(self):
+        tracks = set()
+
+        for time, detections in self.detector:
+
+            associations = self.data_associator.associate(
+                tracks, detections, time)
+            associated_detections = set()
+            for track, hypothesis in associations.items():
+                if hypothesis:
+                    state_post = self.updater.update(hypothesis)
+                    track.append(state_post)
+                    associated_detections.add(hypothesis.measurement)
+                else:
+                    track.append(hypothesis.prediction)
+
+            tracks -= self.deleter.delete_tracks(tracks)
+            tracks |= self.initiate_function(tracks,
+                detections - associated_detections)
+
+            yield time, tracks
+
+
+class SingleTargetTracker(MultiTargetTracker):
     """A simple single target tracker.
 
     Track a single object using Stone Soup components. The tracker works by
@@ -35,104 +95,16 @@ class SingleTargetTracker(Tracker):
         Current track being maintained. Also accessible as the sole item in
         :attr:`tracks`
     """
-    initiator = Property(
-        Initiator,
-        doc="Initiator used to initialise the track.")
-    deleter = Property(
-        Deleter,
-        doc="Deleter used to delete the track")
-    detector = Property(
-        DetectionReader,
-        doc="Detector used to generate detection objects.")
-    data_associator = Property(
-        DataAssociator,
-        doc="Association algorithm to pair predictions to detections")
-    updater = Property(
-        Updater,
-        doc="Updater used to update the track object to the new state.")
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def initiate_function(self, tracks, detections, **kwargs):
+        return (tracks or self.take_one(super().initiate_function(tracks,
+                                                        detections, **kwargs)))
 
-    @BufferedGenerator.generator_method
-    def tracks_gen(self):
-        track = None
-        for time, detections in self.detector:
-            if track is not None:
-                associations = self.data_associator.associate(
-                    {track}, detections, time)
-                if associations[track]:
-                    state_post = self.updater.update(associations[track])
-                    track.append(state_post)
-                else:
-                    track.append(
-                        associations[track].prediction)
-
-            if track is None or self.deleter.delete_tracks({track}):
-                new_tracks = self.initiator.initiate(detections)
-                if new_tracks:
-                    track = new_tracks.pop()
-                else:
-                    track = None
-
-            yield (time, {track}) if track is not None else (time, set())
-
-
-class MultiTargetTracker(Tracker):
-    """A simple multi target tracker.
-
-    Track multiple objects using Stone Soup components. The tracker works by
-    first calling the :attr:`data_associator` with the active tracks, and then
-    either updating the track state with the result of the :attr:`updater` if
-    a detection is associated, or with the prediction if no detection is
-    associated to the track. Tracks are then checked for deletion by the
-    :attr:`deleter`, and remaining unassociated detections are passed to the
-    :attr:`initiator` to generate new tracks.
-
-    Parameters
-    ----------
-    """
-    initiator = Property(
-        Initiator,
-        doc="Initiator used to initialise the track.")
-    deleter = Property(
-        Deleter,
-        doc="Initiator used to initialise the track.")
-    detector = Property(
-        DetectionReader,
-        doc="Detector used to generate detection objects.")
-    data_associator = Property(
-        DataAssociator,
-        doc="Association algorithm to pair predictions to detections")
-    updater = Property(
-        Updater,
-        doc="Updater used to update the track object to the new state.")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @BufferedGenerator.generator_method
-    def tracks_gen(self):
-        tracks = set()
-
-        for time, detections in self.detector:
-
-            associations = self.data_associator.associate(
-                tracks, detections, time)
-            associated_detections = set()
-            for track, hypothesis in associations.items():
-                if hypothesis:
-                    state_post = self.updater.update(hypothesis)
-                    track.append(state_post)
-                    associated_detections.add(hypothesis.measurement)
-                else:
-                    track.append(hypothesis.prediction)
-
-            tracks -= self.deleter.delete_tracks(tracks)
-            tracks |= self.initiator.initiate(
-                detections - associated_detections)
-
-            yield time, tracks
+    @staticmethod
+    def take_one(items):
+        if items:
+            return {items.pop()}
+        return set()
 
 
 class MultiTargetMixtureTracker(Tracker):
