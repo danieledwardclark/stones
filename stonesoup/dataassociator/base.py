@@ -20,6 +20,11 @@ class DataAssociator(Base):
         Hypothesiser,
         doc="Generate a set of hypotheses for each track-detection pair")
 
+    def generate_hypotheses(self, tracks, detections, time, **kwargs):
+        return {track: self.hypothesiser.hypothesise(
+                    track, detections, time, **kwargs)
+                for track in tracks}
+
     @abstractmethod
     def associate(self, tracks, detections, timestamp=None, **kwargs):
         """Associate tracks and detections
