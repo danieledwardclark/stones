@@ -28,7 +28,8 @@ class InfoFilterPredictor(Predictor):
 
     Notes
     -----
-    In the Kalman filter, transition and control models must be linear.
+    In the Information filter (similar to the Kalman filter), transition and control models must be
+     linear.
 
 
     Raises
@@ -59,6 +60,24 @@ class InfoFilterPredictor(Predictor):
                                                     np.zeros([ndims, 1]),
                                                     np.zeros([ndims, ndims]),
                                                     np.zeros([ndims, ndims]))
+
+    def _noise_transition_matrix(self, **kwargs):
+        """Return the noise transition matrix
+
+        Parameters
+        ----------
+        **kwargs : various, optional
+            These are passed to :meth:`~.LinearGaussianTransitionModel.matrix`
+
+        Returns
+        -------
+        : :class:`numpy.ndarray`
+            The noise transition matrix, :math:`G`
+
+        """
+        return np.identity(self.transition_model.ndim_state)
+
+
 
     def _transition_matrix(self, **kwargs):
         """Return the transition matrix
@@ -178,38 +197,33 @@ class InfoFilterPredictor(Predictor):
         p_pred = transition_matrix @ prior.covar @ transition_matrix.T \
             + transition_covar \
             + control_matrix @ control_noise @ control_matrix.T
-        # G = control_matrix - not sure about this though
-        # F = transistion_matrix
-        # Q = transition covar - not sure about this though
-        # Y = fisher information (although I have no variables called fisher information)
 
         ndims = self.transition_model.ndim
 
-        Y = transition_covar
+        G = self._noise_transition_matrix()
+        F = transition_matrix
+        Q = transition_covar # transition covar - not sure about this though
+        Y = prior.covar # fisher information (I think?)
 
-        M = inv(transition_matrix.transpose()) @ Y @ inv(transition_matrix)
+        print(type(G))
+        print(type(F))
+        print(type(Q))
+        print(type(Y))
 
-        #M = inv(F.transpose()) @ Y @ inv(F)
+        M = inv(transition_matrix.T) @ Y @ inv(transition_matrix) # Eq 252
 
-        Sigma = control_matrix.transpose() @ M @ control_matrix + inv(transition_covar)
+        Sigma = G @ M @ G + inv(transition_covar) # Eq 254
 
-        Omega = M @ control_matrix @ inv(Sigma)
+        Omega = M @ G @ inv(Sigma) # Eq 253
 
-        Y = M - Omega @ Sigma @ Omega.transpose()
+        Y_pred = M - Omega @ Sigma @ Omega.T # Eq 251
 
         # Get the information state
         y = prior.state_vector
 
-        u = control_noise # np.array([1, 0, 0, 0]) # now not sure what u is I think this is the control noise
-
-        y = (np.ones((ndims, ndims)) - Omega @ G.transpose()) @ inv(F.transpose()) @ y + Y @ B @ u
-
-        Y = M - Omega @ Sigma @ Omega.transpose()
-
-        # print("Output from prediction (y): ", y)
-        # print("Output from prediction (u): ", u)
+        y_pred = (np.ones((ndims, ndims)) - Omega @ G.transpose()) @ inv(F.transpose()) @ y \
+            + Y @ self.control_model.control_input()
 
 
 
-
-        return GaussianStatePrediction(x_pred, p_pred, timestamp=timestamp)
+        return GaussianStatePrediction(y_pred, Y_pred, timestamp=timestamp)

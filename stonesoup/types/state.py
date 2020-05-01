@@ -141,6 +141,14 @@ class GaussianState(State):
         return self.state_vector
 
 
+class InformationState(GaussianState):
+    """Information State Type
+
+    Information State object with an associated weight.  Used with the information filter to
+    describe an information state (i.e. an information matrix and an information state vector.)
+    """
+
+
 class WeightedGaussianState(GaussianState):
     """Weighted Gaussian State Type
 

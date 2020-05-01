@@ -138,8 +138,11 @@ class InfoFilterUpdater(Updater):
         # native to the updater
         measurement_model = self._check_measurement_model(measurement_model)
 
-        pred_meas = measurement_model.function(predicted_state.state_vector,
+        pred_meas = measurement_model.function(predicted_state,
                                                noise=0, **kwargs)
+
+#        pred_meas = measurement_model.function(predicted_state.state_vector,
+#                                               noise=0, **kwargs)
 
         hh = self._measurement_matrix(predicted_state=predicted_state,
                                       measurement_model=measurement_model,
@@ -153,9 +156,9 @@ class InfoFilterUpdater(Updater):
                                              cross_covar=meas_cross_cov)
 
     def update(self, hypothesis, force_symmetric_covariance=False, **kwargs):
-        r"""The Kalman update method. Given a hypothesised association between
-        a predicted state or predicted measurement and an actual measurement,
-        calculate the posterior state.
+        r"""The Information filter update (estimate) method. Given a hypothesised association
+        between a predicted information state or predicted measurement and an actual measurement,
+        calculate the posterior information state.
 
         Parameters
         ----------
@@ -203,24 +206,14 @@ class InfoFilterUpdater(Updater):
 
 #        z = hypothesis.measurement.state_vector
         y = hypothesis.prediction
-        H = measurement_model.mapping
+        H = measurement_model.matrix()
         R = measurement_model.noise_covar
 
-        posterior_mean = y + H.T @ np.linalg.inv(R) @ pred_meas
+        posterior_mean = y.state_vector + H.T @ np.linalg.inv(R) @ pred_meas
         posterior_covariance = Y + H.T @ np.linalg.inv(R) @ H
 
         # Complete the calculation of the posterior
         # This isn't optimised
-
-        # Don't think there's anything analogous to the Kalman gain in the information filter?
-        #kalman_gain = m_cross_cov @ np.linalg.inv(innov_cov)
-
-        # See above for posterior mean and posterior covariance (actually information matrix)
-        #posterior_mean = \
-        #    predicted_state.state_vector \
-        #    + kalman_gain@(hypothesis.measurement.state_vector - pred_meas)
-        #posterior_covariance = \
-        #    predicted_state.covar - kalman_gain@innov_cov@kalman_gain.T
 
         if force_symmetric_covariance:
             posterior_covariance = \
