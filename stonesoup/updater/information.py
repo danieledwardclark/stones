@@ -9,11 +9,12 @@ from ..types.prediction import GaussianMeasurementPrediction
 from ..types.update import GaussianStateUpdate
 from ..models.base import LinearModel
 from ..models.measurement.linear import LinearGaussian
+from ..updater.kalman import KalmanUpdater
 from ..models.measurement import MeasurementModel
 from ..functions import gauss2sigma, unscented_transform
 
 
-class InfoFilterUpdater(Updater):
+class InfoFilterUpdater(KalmanUpdater):
     r"""A class which embodies Kalman-type updaters; also a class which
     performs measurement update step as in the standard Kalman Filter.
 
@@ -64,29 +65,29 @@ class InfoFilterUpdater(Updater):
             "specified on construction, or in the measurement, then error "
             "will be thrown.")
 
-    def _check_measurement_model(self, measurement_model):
-        """Check that the measurement model passed actually exists. If not
-        attach the one in the updater. If that one's not specified, return an
-        error.
-
-        Parameters
-        ----------
-        measurement_model : :class`~.MeasurementModel`
-            A measurement model to be checked
-
-        Returns
-        -------
-        : :class`~.MeasurementModel`
-            The measurement model to be used
-
-        """
-        if measurement_model is None:
-            if self.measurement_model is None:
-                raise ValueError("No measurement model specified")
-            else:
-                measurement_model = self.measurement_model
-
-        return measurement_model
+    # def _check_measurement_model(self, measurement_model):
+    #     """Check that the measurement model passed actually exists. If not
+    #     attach the one in the updater. If that one's not specified, return an
+    #     error.
+    #
+    #     Parameters
+    #     ----------
+    #     measurement_model : :class`~.MeasurementModel`
+    #         A measurement model to be checked
+    #
+    #     Returns
+    #     -------
+    #     : :class`~.MeasurementModel`
+    #         The measurement model to be used
+    #
+    #     """
+    #     if measurement_model is None:
+    #         if self.measurement_model is None:
+    #             raise ValueError("No measurement model specified")
+    #         else:
+    #             measurement_model = self.measurement_model
+    #
+    #     return measurement_model
 
     def _measurement_matrix(self, predicted_state=None, measurement_model=None,
                             **kwargs):
@@ -210,7 +211,7 @@ class InfoFilterUpdater(Updater):
         R = measurement_model.noise_covar
 
         posterior_mean = y.state_vector + H.T @ np.linalg.inv(R) @ pred_meas
-        posterior_covariance = Y + H.T @ np.linalg.inv(R) @ H
+        posterior_covariance = hypothesis.prediction.covar + H.T @ np.linalg.inv(R) @ H
 
         # Complete the calculation of the posterior
         # This isn't optimised

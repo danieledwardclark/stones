@@ -205,10 +205,10 @@ class InfoFilterPredictor(Predictor):
         Q = transition_covar # transition covar - not sure about this though
         Y = prior.covar # fisher information (I think?)
 
-        print(type(G))
-        print(type(F))
-        print(type(Q))
-        print(type(Y))
+        #print(type(G))
+        #print(type(F))
+        #print(type(Q))
+        #print(type(Y))
 
         M = inv(transition_matrix.T) @ Y @ inv(transition_matrix) # Eq 252
 
