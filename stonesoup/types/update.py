@@ -2,7 +2,7 @@
 from ..base import Property
 from .base import Type
 from .hypothesis import Hypothesis
-from .state import State, GaussianState, ParticleState
+from .state import State, GaussianState, ParticleState, InformationState
 
 
 class Update(Type):
@@ -36,4 +36,11 @@ class ParticleStateUpdate(Update, ParticleState):
     """ParticleStateUpdate type
 
     This is a simple Particle state update object.
+    """
+
+class InformationStateUpdate(Update, InformationState):
+    """ InformationUpdate type
+
+    This is a simple Information state update object, which, as the name
+    suggests, is described by a Information matrix and its corresponding state vector.
     """

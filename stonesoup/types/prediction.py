@@ -2,7 +2,7 @@
 from ..base import Property
 from .array import CovarianceMatrix
 from .base import Type
-from .state import State, GaussianState, ParticleState
+from .state import State, GaussianState, ParticleState, InformationState
 
 
 class Prediction(Type):
@@ -21,6 +21,12 @@ class StatePrediction(State, Prediction):
     """ StatePrediction type
 
     Most simple state prediction type, which only has time and a state vector.
+    """
+
+class InformationStatePrediction(InformationState, Prediction):
+    """ InformationStatePrediction type
+
+    Information state prediction type, which has time. a state vector and an information matrix.
     """
 
 
@@ -68,8 +74,8 @@ class ParticleStatePrediction(Prediction, ParticleState):
     """
 
 
-class ParticleMeasurementPrediction(MeasurementPrediction, ParticleState):
+class InformationMeasurementPrediction(MeasurementPrediction, InformationState):
     """MeasurementStatePrediction type
 
-    This is a simple Particle measurement prediction object.
+    This is a simple Information measurement prediction object.
     """

@@ -5,7 +5,7 @@ from collections.abc import MutableSequence
 import numpy as np
 
 from ..base import Property
-from .array import StateVector, CovarianceMatrix
+from .array import StateVector, CovarianceMatrix, InformationMatrix
 from .base import Type
 from .particle import Particle
 
@@ -141,12 +141,13 @@ class GaussianState(State):
         return self.state_vector
 
 
-class InformationState(GaussianState):
+class InformationState(State):
     """Information State Type
 
     Information State object with an associated weight.  Used with the information filter to
     describe an information state (i.e. an information matrix and an information state vector.)
     """
+    info_matrix = Property(InformationMatrix, doc='Information matrix of state.')
 
 
 class WeightedGaussianState(GaussianState):

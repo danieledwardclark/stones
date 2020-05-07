@@ -278,3 +278,41 @@ class GaussianHellinger(SquaredGaussianHellinger):
 
         """
         return np.sqrt(super().__call__(state1, state2))
+
+
+class InformationDistance(SquaredGaussianHellinger):
+    r"""Gaussian Hellinger distance measure
+
+    This measure returns the Hellinger distance between a pair of
+    :class:`~.GaussianState` multivariate objects.
+
+    The Hellinger distance between two multivariate normal distributions
+    :math:`P \sim N(\mu_1,\Sigma_1)` and :math:`Q \sim N(\mu_2,\Sigma_2)`
+    is defined as:
+
+    .. math::
+            \sqrt{1 - \sqrt{\frac{det(\Sigma_1)^{1/4}det(\Sigma_2)^{1/4}}
+            {det(\Sigma_1+\Sigma_2/2)^{1/2}}}
+            exp\bigg(\frac{-1}{8}(\mu_1-\mu_2)^T
+            (\frac{\Sigma_1+\Sigma_2}{2})^{-1}(\mu_1-\mu_2)\bigg)}
+
+    Note
+    ----
+    This distance is bounded between 0 and 1
+    """
+    def __call__(self, state1, state2):
+        r""" Calculate the Hellinger distance between 2 state elements
+
+        Parameters
+        ----------
+        state1 : :class:`~.GaussianState`
+        state2 : :class:`~.GaussianState`
+
+        Returns
+        -------
+        float
+            Hellinger distance between two input :class:`~.GaussianState`
+
+
+        """
+        return np.sqrt(super().__call__(state1, state2))

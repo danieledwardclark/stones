@@ -5,7 +5,8 @@ from functools import lru_cache, partial
 
 from ..base import Property
 from .base import Predictor
-from ..types.prediction import GaussianStatePrediction
+from ..types.prediction import InformationStatePrediction
+from ..types.update import InformationStateUpdate # To check incoming "prior" data
 from ..models.base import LinearModel
 from ..models.transition import TransitionModel
 from ..models.transition.linear import LinearGaussianTransitionModel
@@ -16,20 +17,18 @@ from numpy.linalg import inv
 
 
 class InfoFilterPredictor(Predictor):
-    r"""A predictor class which forms the basis for the family of Kalman
-    predictors. This class also serves as the (specific) Kalman Filter
-    :class:`~.Predictor` class. Here
+    r"""A predictor class which forms the basis of the information filter. Here
 
     .. math::
 
       f_k( \mathbf{x}_{k-1}) = F_k \mathbf{x}_{k-1},  \ b_k( \mathbf{x}_k) =
       B_k \mathbf{x}_k \ \mathrm{and} \ \mathbf{\nu}_k \sim \mathcal{N}(0,Q_k)
-
+        y_{k|k-1} = [1 = \Omega_k G^T_k] F^{-T}_k y_{k-1|k-1} + Y_{k|k-1} B_k u_k
 
     Notes
     -----
     In the Information filter (similar to the Kalman filter), transition and control models must be
-     linear.
+     linear. Accepts both InformationStateUpdate and GaussianStateUpdate
 
 
     Raises
@@ -194,21 +193,26 @@ class InfoFilterPredictor(Predictor):
         control_matrix = self._control_matrix
         control_noise = self.control_model.control_noise
 
-        p_pred = transition_matrix @ prior.covar @ transition_matrix.T \
-            + transition_covar \
-            + control_matrix @ control_noise @ control_matrix.T
+        print(prior)
+
+        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction):
+            p_pred = transition_matrix @ prior.info_matrix @ transition_matrix.T \
+                + transition_covar \
+                + control_matrix @ control_noise @ control_matrix.T
+        else:
+            p_pred = transition_matrix @ prior.covar @ transition_matrix.T \
+                     + transition_covar \
+                     + control_matrix @ control_noise @ control_matrix.T
 
         ndims = self.transition_model.ndim
 
         G = self._noise_transition_matrix()
         F = transition_matrix
         Q = transition_covar # transition covar - not sure about this though
-        Y = prior.covar # fisher information (I think?)
-
-        #print(type(G))
-        #print(type(F))
-        #print(type(Q))
-        #print(type(Y))
+        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction):
+            Y = prior.info_matrix # fisher information (I think?)
+        else:
+            Y = prior.covar
 
         M = inv(transition_matrix.T) @ Y @ inv(transition_matrix) # Eq 252
 
@@ -224,6 +228,4 @@ class InfoFilterPredictor(Predictor):
         y_pred = (np.ones((ndims, ndims)) - Omega @ G.transpose()) @ inv(F.transpose()) @ y \
             + Y @ self.control_model.control_input()
 
-
-
-        return GaussianStatePrediction(y_pred, Y_pred, timestamp=timestamp)
+        return InformationStatePrediction(y_pred, Y_pred, timestamp=timestamp)
