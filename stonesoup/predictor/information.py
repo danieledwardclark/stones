@@ -7,6 +7,7 @@ from ..base import Property
 from .base import Predictor
 from ..types.prediction import InformationStatePrediction
 from ..types.update import InformationStateUpdate # To check incoming "prior" data
+from ..types.state import InformationState # To check incoming "prior" data
 from ..models.base import LinearModel
 from ..models.transition import TransitionModel
 from ..models.transition.linear import LinearGaussianTransitionModel
@@ -195,7 +196,7 @@ class InfoFilterPredictor(Predictor):
 
         print(prior)
 
-        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction):
+        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction) or isinstance(prior, InformationState):
             p_pred = transition_matrix @ prior.info_matrix @ transition_matrix.T \
                 + transition_covar \
                 + control_matrix @ control_noise @ control_matrix.T
@@ -209,7 +210,7 @@ class InfoFilterPredictor(Predictor):
         G = self._noise_transition_matrix()
         F = transition_matrix
         Q = transition_covar # transition covar - not sure about this though
-        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction):
+        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction) or isinstance(prior, InformationState):
             Y = prior.info_matrix # fisher information (I think?)
         else:
             Y = prior.covar
