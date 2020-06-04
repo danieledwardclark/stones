@@ -99,10 +99,12 @@ class InfoFilterUpdater(KalmanUpdater):
                                       **kwargs)
 
         # See equations 294 and 295 in Hugh Durrant-Whyte document
-        pred_meas = measurement_model.function(predicted_state, **kwargs) # Returns a vector in measurement space
+  #      pred_meas = measurement_model.function(predicted_state, **kwargs) # Returns a vector in measurement space
+
+        proj_matrix = hh.T @ np.linalg.inv(measurement_model.covar()) # projection matrix from measurement space to information space.
 
         # information theoretic quantity - project measurement space into information theoretic space.
-        pred_info_meas = hh.T @ np.linalg.inv(measurement_model.covar()) @ pred_meas
+        pred_info_meas = hh @ np.linalg.inv(predicted_state.info_matrix) @ predicted_state.state_vector
 
         # S
         #innov_cov = hh@predicted_state.covar@hh.T + measurement_model.covar()
@@ -110,34 +112,7 @@ class InfoFilterUpdater(KalmanUpdater):
         meas_cross_cov = predicted_state.info_matrix @ hh.T
 
         return InformationMeasurementPrediction(pred_info_meas, innov_cov,
-                                             predicted_state.timestamp)
-
-
-    def predict_information_state(self, predicted_info_state, measurement_model=None,
-                            **kwargs):
-        r"""Predict the information theoretic quantity implied by the predicted state mean, without
-        the predicted measurement.
-
-        Parameters
-        ----------
-        predicted_information_state : :class:`~.InformationState`
-            The predicted state :math:`\mathbf{y}_{k|k-1}`
-        measurement_model : :class:`~.MeasurementModel`
-            The measurement model. If omitted, the model in the updater object
-            is used
-        **kwargs : various
-            These are passed to :meth:`~.MeasurementModel.function` and
-            :meth:`~.MeasurementModel.matrix`
-
-        Returns
-        -------
-        : :class:`InformationMeasurementPrediction`
-            The information-theoretic measurement prediction, :math:`\mathbf{\upsilon}_{k|k-1}`
-
-        """
-
-        # \upsilon =  i - IYy
-
+                                             predicted_state.timestamp, proj_matrix=proj_matrix)
 
     def update(self, hypothesis, force_symmetric_covariance=False, **kwargs):
         r"""The Information filter update (estimate) method. Given a hypothesised association
@@ -191,30 +166,11 @@ class InfoFilterUpdater(KalmanUpdater):
             predicted_state, measurement_model=measurement_model, **kwargs)
 
 
-        # Get the predicted measurement mean, innovation covariance and
-        # measurement cross-covariance
-        #pred_meas = hypothesis.measurement_prediction.state_vector # i (small) - kalman like way of doing this.
-        pred_meas = hypothesis.measurement.state_vector
-        Y = hypothesis.measurement_prediction.info_matrix
-        innov_cov = hypothesis.measurement_prediction.info_matrix
-        #m_cross_cov = hypothesis.measurement_prediction.cross_covar
-
-        #P = m_cross_cov #
-        # innov_cov = S
-
-
-#        z = hypothesis.measurement.state_vector
         y = hypothesis.prediction
         H = measurement_model.matrix()
         R = measurement_model.noise_covar
 
-        #print("y: ", y.state_vector)
-        # print("H: ", H)
-        # print("R: ", R)
-        # print("pred_meas:", pred_meas)
-
-        posterior_mean = y.state_vector + H.T @ np.linalg.inv(R) @ pred_meas
-       # posterior_mean = y.state_vector + pred_meas
+        posterior_mean = y.state_vector + H.T @ np.linalg.inv(R) @ hypothesis.measurement.state_vector
         posterior_information_matrix = hypothesis.prediction.info_matrix + H.T @ np.linalg.inv(R) @ H
 
         # Complete the calculation of the posterior

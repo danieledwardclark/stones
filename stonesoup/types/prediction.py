@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from ..base import Property
-from .array import CovarianceMatrix
+from .array import CovarianceMatrix, Matrix
 from .base import Type
 from .state import State, GaussianState, ParticleState, InformationState
 
@@ -79,3 +79,7 @@ class InformationMeasurementPrediction(MeasurementPrediction, InformationState):
 
     This is a simple Information measurement prediction object.
     """
+
+    proj_matrix = Property(Matrix,
+                           doc="The projection matrix to information space from measurement space.",
+                           default=None)

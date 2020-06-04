@@ -194,8 +194,9 @@ class InfoFilterPredictor(Predictor):
         control_matrix = self._control_matrix
         control_noise = self.control_model.control_noise
 
-        print(prior)
+        #print(prior)
 
+        # this 'if' statement is not really needed
         if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction) or isinstance(prior, InformationState):
             p_pred = transition_matrix @ prior.info_matrix @ transition_matrix.T \
                 + transition_covar \
@@ -211,7 +212,7 @@ class InfoFilterPredictor(Predictor):
         F = transition_matrix
         Q = transition_covar # transition covar - not sure about this though
         if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction) or isinstance(prior, InformationState):
-            Y = prior.info_matrix # fisher information (I think?)
+            Y = prior.info_matrix # fisher information
         else:
             Y = prior.covar
 

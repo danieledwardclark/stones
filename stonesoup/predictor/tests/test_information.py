@@ -4,9 +4,8 @@ import pytest
 import numpy as np
 
 from ...models.transition.linear import ConstantVelocity
-from ...predictor.kalman import (
-    KalmanPredictor, ExtendedKalmanPredictor, UnscentedKalmanPredictor)
-from ...types.prediction import GaussianStatePrediction
+from ...predictor.information import InfoFilterPredictor
+from ...types.prediction import InformationMeasurementPrediction
 from ...types.state import GaussianState
 
 
@@ -14,14 +13,14 @@ from ...types.state import GaussianState
     "PredictorClass, transition_model, prior_mean, prior_covar",
     [
         (   # Standard Kalman
-            KalmanPredictor,
+            InfoFilterPredictor,
             ConstantVelocity(noise_diff_coeff=0.1),
             np.array([[-6.45], [0.7]]),
             np.array([[4.1123, 0.0013],
                       [0.0013, 0.0365]])
         )
     ],
-    ids=["standard", "extended", "unscented"]
+    ids=["standard"]
 )
 def test_information(PredictorClass, transition_model,
                 prior_mean, prior_covar):
