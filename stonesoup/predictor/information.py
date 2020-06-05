@@ -216,18 +216,28 @@ class InfoFilterPredictor(Predictor):
         else:
             Y = prior.covar
 
-        M = inv(transition_matrix.T) @ Y @ inv(transition_matrix) # Eq 252
+        #M = inv(transition_matrix.T) @ Y @ inv(transition_matrix) # Eq 252
 
-        Sigma = G @ M @ G + inv(transition_covar) # Eq 254
+        #Sigma = G.T @ M @ G + inv(transition_covar) # Eq 254
 
-        Omega = M @ G @ inv(Sigma) # Eq 253
+        #Omega = M @ G @ inv(Sigma) # Eq 253
 
-        Y_pred = M - Omega @ Sigma @ Omega.T # Eq 251
+        #Y_pred = M - Omega @ Sigma @ Omega.T # Eq 251
 
         # Get the information state
         y = prior.state_vector
 
-        y_pred = (np.ones((ndims, ndims)) - Omega @ G.transpose()) @ inv(F.transpose()) @ y \
-            + Y @ self.control_model.control_input()
+        M = inv(F).T @ Y @ inv(F)
+
+        C = M @ inv(M + inv(Q))
+
+        L = np.ones((ndims, ndims))-C
+
+        Y_pred = L @ M @ L.T + C @ inv(Q) @ C.T
+
+        y_pred = L @ inv(F.T) @ y
+
+        # y_pred = (np.ones((ndims, ndims)) - Omega @ G.T) @ inv(F.T) @ y \
+        #     + Y @ self.control_model.control_input()
 
         return InformationStatePrediction(y_pred, Y_pred, timestamp=timestamp)
