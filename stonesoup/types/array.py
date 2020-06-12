@@ -86,6 +86,7 @@ class CovarianceMatrix(Matrix):
                              "".format(array.ndim))
         return array.view(cls)
 
+
 class InformationMatrix(Matrix):
     """Information matrix wrapper for :class:`numpy.ndarray`.
 

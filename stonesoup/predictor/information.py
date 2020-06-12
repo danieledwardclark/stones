@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from functools import lru_cache, partial
+from functools import lru_cache
 
 from ..base import Property
 from .base import Predictor
 from ..types.prediction import InformationStatePrediction
-from ..types.update import InformationStateUpdate # To check incoming "prior" data
-from ..types.state import InformationState # To check incoming "prior" data
-from ..models.base import LinearModel
-from ..models.transition import TransitionModel
+from ..types.update import InformationStateUpdate  # To check incoming "prior" data
+from ..types.state import InformationState  # To check incoming "prior" data
 from ..models.transition.linear import LinearGaussianTransitionModel
-from ..models.control import ControlModel
 from ..models.control.linear import LinearControlModel
-from ..functions import gauss2sigma, unscented_transform
+
 from numpy.linalg import inv
 
 
@@ -76,8 +73,6 @@ class InfoFilterPredictor(Predictor):
 
         """
         return np.identity(self.transition_model.ndim_state)
-
-
 
     def _transition_matrix(self, **kwargs):
         """Return the transition matrix
@@ -178,11 +173,6 @@ class InfoFilterPredictor(Predictor):
         # Get the prediction interval
         predict_over_interval = self._predict_over_interval(prior, timestamp)
 
-        # Prediction of the mean
-        x_pred = self._transition_function(
-            prior, time_interval=predict_over_interval, **kwargs) \
-            + self.control_model.control_input()
-
         # As this is Kalman-like, the control model must be capable of
         # returning a control matrix (B)
 
@@ -191,53 +181,44 @@ class InfoFilterPredictor(Predictor):
         transition_covar = self.transition_model.covar(
             time_interval=predict_over_interval, **kwargs)
 
-        control_matrix = self._control_matrix
-        control_noise = self.control_model.control_noise
+#        control_matrix = self._control_matrix
+#        control_noise = self.control_model.control_noise
 
-        #print(prior)
-
-        # this 'if' statement is not really needed
-        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction) or isinstance(prior, InformationState):
-            p_pred = transition_matrix @ prior.info_matrix @ transition_matrix.T \
-                + transition_covar \
-                + control_matrix @ control_noise @ control_matrix.T
-        else:
-            p_pred = transition_matrix @ prior.covar @ transition_matrix.T \
-                     + transition_covar \
-                     + control_matrix @ control_noise @ control_matrix.T
+        # p_pred = transition_matrix @ prior.info_matrix @ transition_matrix.T \
+        #          + transition_covar \
+        #          + control_matrix @ control_noise @ control_matrix.T
 
         ndims = self.transition_model.ndim
 
         G = self._noise_transition_matrix()
         F = transition_matrix
-        Q = transition_covar # transition covar - not sure about this though
-        if isinstance(prior, InformationStateUpdate) or isinstance(prior, InformationStatePrediction) or isinstance(prior, InformationState):
-            Y = prior.info_matrix # fisher information
+        # Q = transition_covar  # transition covar - not sure about this though
+        if isinstance(prior, InformationStateUpdate)\
+                or isinstance(prior, InformationStatePrediction)\
+                or isinstance(prior, InformationState):
+            Y = prior.info_matrix  # fisher information
         else:
             Y = prior.covar
 
-        #M = inv(transition_matrix.T) @ Y @ inv(transition_matrix) # Eq 252
+        M = inv(transition_matrix.T) @ Y @ inv(transition_matrix)  # Eq 252
 
-        #Sigma = G.T @ M @ G + inv(transition_covar) # Eq 254
+        Sigma = G.T @ M @ G + inv(transition_covar)  # Eq 254
 
-        #Omega = M @ G @ inv(Sigma) # Eq 253
+        Omega = M @ G @ inv(Sigma)  # Eq 253
 
-        #Y_pred = M - Omega @ Sigma @ Omega.T # Eq 251
+        Y_pred = M - Omega @ Sigma @ Omega.T  # Eq 251
 
         # Get the information state
         y = prior.state_vector
+        y_pred = (np.identity(ndims)
+                  - Omega @ G.T) @ inv(F.T) @ y + Y @ self.control_model.control_input()
 
-        M = inv(F).T @ Y @ inv(F)
-
-        C = M @ inv(M + inv(Q))
-
-        L = np.ones((ndims, ndims))-C
-
-        Y_pred = L @ M @ L.T + C @ inv(Q) @ C.T
-
-        y_pred = L @ inv(F.T) @ y
-
-        # y_pred = (np.ones((ndims, ndims)) - Omega @ G.T) @ inv(F.T) @ y \
-        #     + Y @ self.control_model.control_input()
+        # Wikipedia method
+        # M = inv(F).T @ Y @ inv(F)
+        # C = M @ inv(M + inv(Q))
+        # L = np.ones((ndims, ndims))-C
+        # Y_pred = L @ M @ L.T + C @ inv(Q) @ C.T
+        # y_pred = L @ inv(F.T) @ y
+        # End wikipedia method
 
         return InformationStatePrediction(y_pred, Y_pred, timestamp=timestamp)

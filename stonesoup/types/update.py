@@ -38,6 +38,7 @@ class ParticleStateUpdate(Update, ParticleState):
     This is a simple Particle state update object.
     """
 
+
 class InformationStateUpdate(Update, InformationState):
     """ InformationUpdate type
 

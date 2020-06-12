@@ -5,8 +5,8 @@ import numpy as np
 
 from ...models.transition.linear import ConstantVelocity
 from ...predictor.information import InfoFilterPredictor
-from ...types.prediction import InformationMeasurementPrediction
 from ...types.state import GaussianState
+from ...types.prediction import GaussianStatePrediction
 
 
 @pytest.mark.parametrize(
@@ -23,7 +23,7 @@ from ...types.state import GaussianState
     ids=["standard"]
 )
 def test_information(PredictorClass, transition_model,
-                prior_mean, prior_covar):
+                     prior_mean, prior_covar):
 
     # Define time related variables
     timestamp = datetime.datetime.now()

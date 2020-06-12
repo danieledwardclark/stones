@@ -7,10 +7,10 @@ from stonesoup.models.measurement.linear import LinearGaussian
 from stonesoup.types.detection import Detection
 from stonesoup.types.hypothesis import SingleHypothesis
 from stonesoup.types.prediction import (
-    InformationStatePrediction, InformationMeasurementPrediction, InformationState)
-from stonesoup.types.state import GaussianState
-from stonesoup.updater.information import InfoFilterUpdater 
+    InformationStatePrediction, InformationState)
+from stonesoup.updater.information import InfoFilterUpdater
 from numpy.linalg import inv
+
 
 @pytest.mark.parametrize(
     "UpdaterClass, measurement_model, prediction, measurement",
@@ -20,8 +20,8 @@ from numpy.linalg import inv
             LinearGaussian(ndim_state=2, mapping=[0],
                            noise_covar=np.array([[0.04]])),
             InformationStatePrediction(np.array([[-6.45], [0.7]]),
-                                    np.array([[0.0000, 0.0000],
-                                              [0.0000, 0.0000]])),
+                                       np.array([[0.0000, 0.0000],
+                                                 [0.0000, 0.0000]])),
             Detection(np.array([[-6.23]]))
         ),
     ],
@@ -38,29 +38,29 @@ def test_information(UpdaterClass, measurement_model, prediction, measurement):
     #     + measurement_model.covar(),
     #     cross_covar=prediction.info_matrix@measurement_model.matrix().T)
 
-    #kalman_gain = eval_measurement_prediction.cross_covar@np.linalg.inv(
+    # kalman_gain = eval_measurement_prediction.cross_covar@np.linalg.inv(
     #    eval_measurement_prediction.covar)
 
     print(measurement_model.matrix())
     print(measurement_model.noise_covar)
 
-    y = prediction.state_vector
-    H = measurement_model.matrix()
-    R = measurement_model.noise_covar
-    x = measurement.state_vector
+    # y = prediction.state_vector
+    # H = measurement_model.matrix()
+    # R = measurement_model.noise_covar
+    # x = measurement.state_vector
 
     # Code directly below works out what the updater would implement
     eval_posterior = InformationState(
-        (prediction.state_vector
-        + (measurement_model.matrix().T @ inv(measurement_model.noise_covar) @ measurement.state_vector)),
-        (prediction.info_matrix
-         + measurement_model.matrix().T @ inv(measurement_model.noise_covar) @ measurement_model.matrix()))
-
-    #eval_posterior = InformationState(prediction.state_vector )
+        (
+                prediction.state_vector +
+                (measurement_model.matrix().T @ inv(measurement_model.noise_covar) @
+                 measurement.state_vector)),
+        (prediction.info_matrix +
+         measurement_model.matrix().T @ inv(measurement_model.noise_covar) @
+         measurement_model.matrix()))
 
     # Initialise a information (?) (kalman) updater
     updater = UpdaterClass(measurement_model=measurement_model)
-
 
     # Get and assert measurement prediction - need to rewrite thios bit
     # measurement_prediction = updater.predict_measurement(prediction)
@@ -93,10 +93,6 @@ def test_information(UpdaterClass, measurement_model, prediction, measurement):
     #     #                     measurement_prediction.info_matrix, 0, atol=1.e-14))
     assert(np.array_equal(posterior.hypothesis.measurement, measurement))
     assert(posterior.timestamp == prediction.timestamp)
-
-
-
-
 
     # # Perform and assert state update
     # posterior = updater.update(SingleHypothesis(

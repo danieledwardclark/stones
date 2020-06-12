@@ -279,6 +279,7 @@ class GaussianHellinger(SquaredGaussianHellinger):
         """
         return np.sqrt(super().__call__(state1, state2))
 
+
 class InformationDistance(Measure):
     r"""Information distance measure
 

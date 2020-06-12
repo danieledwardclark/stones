@@ -23,6 +23,7 @@ class StatePrediction(State, Prediction):
     Most simple state prediction type, which only has time and a state vector.
     """
 
+
 class InformationStatePrediction(InformationState, Prediction):
     """ InformationStatePrediction type
 
@@ -81,5 +82,11 @@ class InformationMeasurementPrediction(MeasurementPrediction, InformationState):
     """
 
     proj_matrix = Property(Matrix,
-                           doc="The projection matrix to information space from measurement space.",
+                           doc="Projection matrix to information space from measurement space.",
                            default=None)
+
+
+class ParticleMeasurementPrediction(MeasurementPrediction, ParticleState):
+    """MeasurementStatePrediction type
+    This is a simple Particle measurement prediction object.
+    """
