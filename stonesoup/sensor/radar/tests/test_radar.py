@@ -66,7 +66,7 @@ def h3d(state, pos_map, translation_offset, rotation_offset):
                 2,
                 np.array([0, 1]),  # pos_mapping
                 np.array([[0.015, 0],
-                      [0, 0.1]]),  # noise_covar
+                          [0, 0.1]]),  # noise_covar
                 StateVector([[1], [1]]),  # position
                 np.array([[200], [10]])  # target
          ),
