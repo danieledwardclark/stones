@@ -23,7 +23,7 @@ class PassiveElevationBearing(Sensor):
         doc="Number of state dimensions. This is utilised by (and follows in\
             format) the underlying :class:`~.CartesianToElevationBearing`\
             model")
-    mapping = Property(
+    position_mapping = Property(
         [np.array],
         doc="Mapping between the targets state space and the sensors\
             measurement capability")
@@ -54,7 +54,7 @@ class PassiveElevationBearing(Sensor):
 
         measurement_model = CartesianToElevationBearing(
             ndim_state=self.ndim_state,
-            mapping=self.mapping,
+            mapping=self.position_mapping,
             noise_covar=self.noise_covar,
             translation_offset=self.position,
             rotation_offset=self.orientation)

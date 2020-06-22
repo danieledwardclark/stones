@@ -26,7 +26,7 @@ def test_passive_sensor():
         position=detector_position,
         orientation=detector_orientation,
         ndim_state=3,
-        mapping=measurement_mapping,
+        position_mapping=measurement_mapping,
         noise_covar=noise_covar)
 
     # Assert that the object has been correctly initialised
