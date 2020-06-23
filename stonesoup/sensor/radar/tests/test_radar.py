@@ -9,7 +9,7 @@ from ....types.angle import Bearing, Elevation
 from ....types.array import StateVector, CovarianceMatrix
 from ....types.state import State
 from ....types.groundtruth import GroundTruthState
-from ..radar import RadarBearingRange, RadarBearingElevationRange, RadarRotatingBearingRange, \
+from ..radar import RadarBearingRange, RadarElevationBearingRange, RadarRotatingBearingRange, \
     AESARadar, RadarRasterScanBearingRange, RadarBearingRangeRate, RadarElevationBearingRangeRate
 from ..beam_pattern import StationaryBeam
 from ..beam_shape import Beam2DGaussian
@@ -72,7 +72,7 @@ def h3d(state, pos_map, translation_offset, rotation_offset):
          ),
         (
             h3d,  # h
-            RadarBearingElevationRange,  # sensorclass
+            RadarElevationBearingRange,  # sensorclass
             3,
             np.array([0, 1, 2]),  # pos_mapping
             np.array([[0.015, 0, 0],

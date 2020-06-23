@@ -202,9 +202,9 @@ class RadarRotatingBearingRange(RadarBearingRange):
         )
 
 
-class RadarBearingElevationRange(RadarBearingRange):
+class RadarElevationBearingRange(RadarBearingRange):
     """A  radar sensor that generates measurements of targets, using a
-    :class:`~.CartesianToBearingElevationRange` model, relative to its position.
+    :class:`~.CartesianToElevationBearingRange` model, relative to its position.
 
     Note
     ----
