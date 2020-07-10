@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
 from functools import lru_cache
 
 from ..base import Property
@@ -8,47 +7,49 @@ from ..types.prediction import InformationMeasurementPrediction
 from ..types.update import InformationStateUpdate
 from ..models.measurement.linear import LinearGaussian
 from ..updater.kalman import KalmanUpdater
+from numpy.linalg import inv
 
 
 class InfoFilterUpdater(KalmanUpdater):
     r"""A class to implement the update of Information filter.
 
-    The Information Filter update class inherits from the Kalman filter updater. assume
+    The Information Filter update class inherits from the Kalman filter updater. Assume
     :math:`h(\mathbf{x}) = H \mathbf{x}` with additive noise :math:`\sigma = \mathcal{N}(0,R)`.
     Daughter classes can overwrite to specify a more general measurement model
     :math:`h(\mathbf{x})`.
 
     :meth:`update` first calls :meth:`predict_measurement` function which
     proceeds by calculating the predicted measurement, innovation covariance
-    and measurement cross-covariance,
+    and measurement cross-covariance, :meth:`predict_measurement` returns a
+    :class:`~.InformationMeasurementPrediction`.
+
+    The information state contribution and information
 
     .. math::
-
-        \mathbf{I}_{k|k-1} = H^{T}_k R^{-1}_k H
 
         \mathbf{i}_{k|k-1} = H^{T}_k R^{-1}_k \mathbf{z}_{k}
 
-        \Sigma = \[G^T M G + Q^{-1} \]
-
-    where :math:`y_{k|k-1}` is the predicted information state and G is the "information
-    observation" matrix which is assumed to be set to the identity matrix.
-    :meth:`predict_measurement` returns a
-    :class:`~.InformationMeasurementPrediction`. The information prediction gain (analogous to the
-    Kalman gain) is then calculated as,
-
     .. math::
 
-        \Omega_k = M_k G_k \Sigma^{-1}_k
+        I_{k|k-1} = H^{T}_k R^{-1}_k H
+
+
+    where :math:`\mathbf{i}` and :math:`I` are the information state and information matrix
+    contribution.
 
     and the posterior information state mean and information matrix are,
 
     .. math::
 
-        y_{k|k} = y_{k|k-1} + i_k
+        \mathbf{y}_{k|k} = \mathbf{y}_{k|k-1} + \mathbf{i}_k
 
         Y_{k|k} = Y_{k|k-1} + I_k
 
-    These are returned as a :class:`~.GaussianStateUpdate` object.
+
+    where :math:`\mathbf{y}_{k|k}` is the posterior information state and :math:`Y_{k|k}` is the
+    posterior Fisher information matrix.
+
+    These are returned as a :class:`~.InformationStateUpdate` object.
     """
 
     # TODO: at present this will throw an error if a measurement model is not
@@ -64,14 +65,15 @@ class InfoFilterUpdater(KalmanUpdater):
     def predict_measurement(self, predicted_state, measurement_model=None,
                             **kwargs):
         r"""Predict the information theoretic quantity implied by the predicted state mean and
-        predicted measurement. Function is provided for completeness the
-        :meth:`~.predict_information_state' method is recommended for data association when
-        implementing the information filter in a multi-target scenario.
+        predicted measurement. The :meth:`~.predict_measurement` method allocates the information
+        equivalent of the measurement prediction, :math:`H_k Y^{-1}_{k|k-1} \mathbf{y}_{k|k-1}`, to
+        the hypothesis. This is consistent with the Kalman filter and allows data association when
+        implementing the information filter in a multi-target scenario or scenario with clutter.
 
         Parameters
         ----------
         predicted_state : :class:`~.State`
-            The predicted state :math:`\mathbf{x}_{k|k-1}`
+            The predicted state :math:`\mathbf{y}_{k|k-1}`
         measurement_model : :class:`~.MeasurementModel`
             The measurement model. If omitted, the model in the updater object
             is used
@@ -98,11 +100,10 @@ class InfoFilterUpdater(KalmanUpdater):
         #      in measurement space
 
         # projection matrix from measurement space to information space.
-        proj_matrix = hh.T @ np.linalg.inv(measurement_model.covar())
+        proj_matrix = hh.T @ inv(measurement_model.covar())
 
         # information theoretic quantity - project measurement space to info theoretic space.
-        pred_info_meas = hh @ np.linalg.inv(
-            predicted_state.info_matrix) @ predicted_state.state_vector
+        pred_info_meas = hh @ inv(predicted_state.info_matrix) @ predicted_state.state_vector
 
         # innov_cov = hh@predicted_state.covar@hh.T + measurement_model.covar()
         innov_cov = hh @ predicted_state.info_matrix @ hh.T + measurement_model.covar()
@@ -123,7 +124,7 @@ class InfoFilterUpdater(KalmanUpdater):
             may carry a predicted measurement, or a predicted state. In the
             latter case a predicted measurement will be calculated.
         force_symmetric_covariance : :obj:`bool`, optional
-            A flag to force the output covariance matrix to be symmetric by way
+            A flag to force the output Fisher information matrix to be symmetric by way
             of a simple geometric combination of the matrix and transpose.
             Default is `False`
         **kwargs : various
@@ -131,9 +132,9 @@ class InfoFilterUpdater(KalmanUpdater):
 
         Returns
         -------
-        : :class:`~.GaussianStateUpdate`
-            The posterior state Gaussian with mean :math:`\mathbf{x}_{k|k}` and
-            covariance :math:`P_{x|x}`
+        : :class:`~.InformationStateUpdate`
+            The posterior information state with information state :math:`\mathbf{y}_{k|k}` and
+            Fisher information matrix :math:`Y_{k|k}`
 
         """
 
@@ -155,8 +156,7 @@ class InfoFilterUpdater(KalmanUpdater):
         #         predicted_state, measurement_model=measurement_model, **kwargs)
 
         measurement_model = hypothesis.measurement.measurement_model
-        measurement_model = self._check_measurement_model(
-            measurement_model)
+        measurement_model = self._check_measurement_model(measurement_model)
 
         # Attach the measurement prediction to the hypothesis
         hypothesis.measurement_prediction = self.predict_measurement(
@@ -166,9 +166,8 @@ class InfoFilterUpdater(KalmanUpdater):
         H = measurement_model.matrix()
         R = measurement_model.noise_covar
 
-        posterior_mean = y.state_vector + H.T @ np.linalg.inv(R) @ hypothesis.measurement.state_vector
-        posterior_information_matrix = hypothesis.prediction.info_matrix +\
-                                       H.T @ np.linalg.inv(R) @ H
+        posterior_mean = y.state_vector + H.T @ inv(R) @ hypothesis.measurement.state_vector
+        posterior_information_matrix = hypothesis.prediction.info_matrix + H.T @ inv(R) @ H
 
         # Complete the calculation of the posterior
         # This isn't optimised

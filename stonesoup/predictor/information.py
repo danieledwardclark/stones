@@ -15,18 +15,39 @@ from numpy.linalg import inv
 
 
 class InfoFilterPredictor(Predictor):
-    r"""A predictor class which forms the basis of the information filter. Here
+    r"""A predictor class which forms the basis for the family of Kalman
+    predictors. This class also serves as the (specific) Kalman Filter
+    :class:`~.Predictor` class. Here the predictor model is updated from the base class
 
     .. math::
 
-      f_k( \mathbf{x}_{k-1}) = F_k \mathbf{x}_{k-1},  \ b_k( \mathbf{x}_k) =
-      B_k \mathbf{x}_k \ \mathrm{and} \ \mathbf{\nu}_k \sim \mathcal{N}(0,Q_k)
-        y_{k|k-1} = [1 = \Omega_k G^T_k] F^{-T}_k y_{k-1|k-1} + Y_{k|k-1} B_k u_k
+        \mathbf{y}_{k|k-1} = f_k(\mathbf{y}_{k-1}, \mathbf{\nu}_k) +
+        b_k(\mathbf{u}_k, \mathbf{\eta}_k)
+
+    where :math:`\mathbf{x}_{k|k-1}` has been replaced by an information-theoretic state
+    :math:`\mathbf{y}_{k|k-1}`. Thus the predictor class implements
+
+    .. math::
+
+      f_k( \mathbf{y}_{k-1}) = [I_{identity} - \Omega_k G^T_k] F^{-T}_k \mathbf{y}_{k-1|k-1}, \
+      b_k( \mathbf{y}_k) = Y_k B_k \mathbf{y}_{k|k-1} \ \mathrm{and} \ \mathbf{\nu}_k \sim
+      \mathcal{N}(0,Q_k)
+
+    where :math:`I_{identity}` is the identity matrix.
+
+    The information prediction gain (analogous to the Kalman gain) is then calculated as,
+
+    .. math::
+
+        \Omega_k = M_k G_k \Sigma^{-1}_k
+
+    where G is the "information observation" matrix which is assumed to be set to the identity
+    matrix in this implementation.
 
     Notes
     -----
     In the Information filter (similar to the Kalman filter), transition and control models must be
-     linear. Accepts both InformationStateUpdate and GaussianStateUpdate
+    linear. Accepts InformationStateUpdate.
 
 
     Raises
@@ -97,7 +118,7 @@ class InfoFilterPredictor(Predictor):
         Parameters
         ----------
         prior : :class:`~.State`
-            The prior state, :math:`\mathbf{x}_{k-1}`
+            The prior state, :math:`\mathbf{y}_{k-1}`
 
         **kwargs : various, optional
             These are passed to :meth:`~.LinearGaussianTransitionModel.matrix`
@@ -155,18 +176,18 @@ class InfoFilterPredictor(Predictor):
         Parameters
         ----------
         prior : :class:`~.State`
-            :math:`\mathbf{x}_{k-1}`
+            :math:`\mathbf{y}_{k-1}`
         timestamp : :class:`datetime.datetime`, optional
             :math:`k`
         **kwargs :
-            These are passed, via :meth:`~.KalmanFilter.transition_function` to
+            These are passed, via :meth:`~.InformationFilter.transition_function` to
             :meth:`~.LinearGaussianTransitionModel.matrix`
 
         Returns
         -------
         : :class:`~.State`
-            :math:`\mathbf{x}_{k|k-1}`, the predicted state and the predicted
-            state covariance :math:`P_{k|k-1}`
+            :math:`\mathbf{y}_{k|k-1}`, the predicted state and the predicted
+            Fisher information matrix :math:`Y_{k|k-1}`
 
         """
 

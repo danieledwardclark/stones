@@ -20,8 +20,8 @@ from numpy.linalg import inv
             LinearGaussian(ndim_state=2, mapping=[0],
                            noise_covar=np.array([[0.04]])),
             InformationStatePrediction(np.array([[-6.45], [0.7]]),
-                                       np.array([[0.0000, 0.0000],
-                                                 [0.0000, 0.0000]])),
+                                       np.array([[1.0000, 0.0000],
+                                                 [0.0000, 1.0000]])),
             Detection(np.array([[-6.23]]))
         ),
     ],
