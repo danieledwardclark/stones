@@ -4,6 +4,7 @@
 import numpy as np
 from copy import copy
 
+from stonesoup.types.angle import Bearing, Elevation
 from .types.numeric import Probability
 from .types.array import StateVector, StateVectors, CovarianceMatrix
 
@@ -294,7 +295,7 @@ def cart2sphere(x, y, z):
 
     Returns
     -------
-    (float, float, float)
+    (float, Bearing, Elevation)
         A tuple of the form `(range, bearing, elevation)`
         bearing and elevation in radians. Elevation is measured from x, y plane
 
@@ -303,7 +304,7 @@ def cart2sphere(x, y, z):
     rho = np.sqrt(x**2 + y**2 + z**2)
     phi = np.arctan2(y, x)
     theta = np.arcsin(z/rho)
-    return (rho, phi, theta)
+    return (rho, Bearing(phi), Elevation(theta))
 
 
 def cart2angles(x, y, z):
