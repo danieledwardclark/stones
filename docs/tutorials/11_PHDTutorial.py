@@ -144,60 +144,46 @@ updater = KalmanUpdater(measurement_model)
 # Initialise a Mahalanobis distance measure to facilitate this ranking.
 from stonesoup.hypothesiser.distance import DistanceHypothesiser
 from stonesoup.measures import Mahalanobis
-base_hypothesiser = DistanceHypothesiser(
-    predictor, 
-    updater, 
-    measure=measure, 
-    missed_distance=16)
+base_hypothesiser = DistanceHypothesiser(predictor, updater, measure=Mahalanobis(), missed_distance=16)
+
 # %%
 # Initialise the GNN with the hypothesiser.
-from stonesoup.dataassociator.neighbour import GNNWith2DAssignment
-data_associator = GNNWith2DAssignment(hypothesiser)
+from stonesoup.hypothesiser.gaussianmixture import GaussianMixtureHypothesiser
+data_associator = GaussianMixtureHypothesiser(hypothesiser=hypothesiser,order_by_detection=True)
 
 
 # %%
-# Initiator and Deleter
+# Reducer
 # ^^^^^^^^^^^^^^^^^^^^^
-# Create deleter - get rid of anything with a covariance trace greater than 2
-from stonesoup.deleter.error import CovarianceBasedDeleter
-covariance_limit_for_delete = 2
-deleter = CovarianceBasedDeleter(covariance_limit_for_delete)
+# And a Gaussian Mixture reducer to remove low weighted components (pruning) and to merge similar (overlapping) components (merging). This is done to reduce computational complexity.
+from stonesoup.mixturereducer.gaussianmixture import GaussianMixtureReducer
+merge_threshold = 8
+prune_threshold = 1e-6
+reducer = GaussianMixtureReducer(prune_threshold=prune_threshold,
+                                 merge_threshold=merge_threshold)
 
 # %%
-# Set a standard prior state and the minimum number of detections required to qualify for
-# initiation
-s_prior_state=GaussianState([[0], [0], [0], [0]], np.diag([0, 0.5, 0, 0.5]))
-min_detections = 3
+# We will also need to create a "birth" component. This models the expected number of new targets at each time step. This is acheived by having a large Gaussian component, which covers the entire state space, and is therefore associated with every measurement.
+from stonesoup.types.state import TaggedWeightedGaussianState
 
-# %%
-# Initialise the initiator - use the 'full tracker' components specified above in the initiator.
-# But note that other ones could be used if needed.
-from stonesoup.initiator.simple import MultiMeasurementInitiator
-initiator = MultiMeasurementInitiator(
-    prior_state=s_prior_state,
-    measurement_model=measurement_model,
-    deleter=deleter,
-    data_associator=data_associator,
-    updater=updater,
-    min_points=min_detections
-)
+birth_component = TaggedWeightedGaussianState(StateVector([[0], [0], [0], [0]]),CovarianceMatrix(np.diag([1000, 10, 1000, 10])),weight=0.5,tag="birth",timestamp=datetime.datetime.now())
 
 # %%
 # Run the Tracker
 # ---------------
-# With the components created, the multi-target tracker component is created, constructed from
-# the components specified above. This is logically the same as tracking code in the previous
-# tutorial section :ref:`auto_tutorials/09_Initiators_&_Deleters:Running the Tracker`
-from stonesoup.tracker.simple import MultiTargetTracker
+# With all the components in place, we'll now construct the tracker with a multi target tracker. Since the JPDA filter is more computationally intensive than other algorithms (due to the combinatorial explosion of permutations of track/detection associations), this notebook prints the current simulation time being processed so that you can see that the algorithm is not "hanging".
+from stonesoup.updater.pointprocess import PHDUpdater
+from stonesoup.tracker.pointprocess import PointProcessMultiTargetTracker
 
-tracker = MultiTargetTracker(
-    initiator=initiator,
-    deleter=deleter,
+phd_updater = PHDUpdater(updater=updater, prob_detection=0.9)
+
+tracker = PointProcessMultiTargetTracker(
     detector=detection_sim,
-    data_associator=data_associator,
-    updater=updater,
-)
-
+    updater=phd_updater,
+    hypothesiser=hypothesiser,
+    reducer=reducer,
+    birth_component=birth_component
+    )
 # %%
 # Plot the outputs
 # ^^^^^^^^^^^^^^^^
@@ -219,3 +205,5 @@ ax = fig.axes[0]
 ax.set_xlim([-30, 30])
 _ = ax.set_ylim([-30, 30])
 
+
+# %%
