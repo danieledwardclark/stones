@@ -3,12 +3,11 @@
 
 """
 =============================================================
-10 - Tracking in simulation: bringing all components together
+11 - Tracking with the Gaussian Mixture Probaiblity Hypothesis Density (GM-PHD) Filter
 =============================================================
-The previous tutorials have introduced various aspects of Stone Soup covering inference and data
-association for multiple-target trackers, using simulated data. This tutorial consolidates those
-aspects in a notebook which can be modified to individual need. It contains all aspects
-introduced in previous tutorials, and nothing new.
+In previous tutorials, the JPDA and MHT were used to in a multi-target trackign scenario. Here we use a 
+Gaussian Mixture (GM) implementation of the Probaiblity Hypothesis Density (PHD) filter to track an 
+unknown number of targets 
 """
 
 # %%
@@ -28,7 +27,6 @@ introduced in previous tutorials, and nothing new.
 #   * Initialise predictors
 #   * Initialise updaters
 #   * Initialise data associations, hypothesisers
-#   * Initiators and deleters
 #   * Create the tracker
 #
 # 3. Run the tracker
@@ -58,8 +56,8 @@ initial_state_mean = StateVector([[0], [0], [0], [0]])
 initial_state_covariance = CovarianceMatrix(np.diag([4, 0.5, 4, 0.5]))
 timestep_size = datetime.timedelta(seconds=5)
 number_of_steps = 20
-birth_rate = 0.3
-death_probability = 0.05
+birth_rate = 0.2
+death_probability = 0.001
 initial_state = GaussianState(initial_state_mean, initial_state_covariance)
 
 # %%
@@ -116,8 +114,7 @@ detection_sim = SimpleDetectionSimulator(
 # %%
 # Create the tracker components
 # -----------------------------
-# In this example a Kalman filter is used with global nearest neighbour (GNN) associator. Other
-# options are, of course, available.
+# In this example a Kalman filter is used.
 #
 
 # %%
@@ -147,9 +144,9 @@ from stonesoup.measures import Mahalanobis
 base_hypothesiser = DistanceHypothesiser(predictor, updater, measure=Mahalanobis(), missed_distance=16)
 
 # %%
-# Initialise the GNN with the hypothesiser.
+# Initialise the multi-target hypothesiser with the hypothesiser.
 from stonesoup.hypothesiser.gaussianmixture import GaussianMixtureHypothesiser
-data_associator = GaussianMixtureHypothesiser(hypothesiser=hypothesiser,order_by_detection=True)
+hypothesiser = GaussianMixtureHypothesiser(hypothesiser=base_hypothesiser, order_by_detection=True)
 
 
 # %%
@@ -157,8 +154,8 @@ data_associator = GaussianMixtureHypothesiser(hypothesiser=hypothesiser,order_by
 # ^^^^^^^^^^^^^^^^^^^^^
 # And a Gaussian Mixture reducer to remove low weighted components (pruning) and to merge similar (overlapping) components (merging). This is done to reduce computational complexity.
 from stonesoup.mixturereducer.gaussianmixture import GaussianMixtureReducer
-merge_threshold = 8
-prune_threshold = 1e-6
+merge_threshold = 4
+prune_threshold = 1e-3
 reducer = GaussianMixtureReducer(prune_threshold=prune_threshold,
                                  merge_threshold=merge_threshold)
 
@@ -166,12 +163,12 @@ reducer = GaussianMixtureReducer(prune_threshold=prune_threshold,
 # We will also need to create a "birth" component. This models the expected number of new targets at each time step. This is acheived by having a large Gaussian component, which covers the entire state space, and is therefore associated with every measurement.
 from stonesoup.types.state import TaggedWeightedGaussianState
 
-birth_component = TaggedWeightedGaussianState(StateVector([[0], [0], [0], [0]]),CovarianceMatrix(np.diag([1000, 10, 1000, 10])),weight=0.5,tag="birth",timestamp=datetime.datetime.now())
+birth_component = TaggedWeightedGaussianState(StateVector([[0], [0], [0], [0]]),CovarianceMatrix(np.diag([1, 1, 1, 1])),weight=1,tag="birth",timestamp=datetime.datetime.now())
 
 # %%
 # Run the Tracker
 # ---------------
-# With all the components in place, we'll now construct the tracker with a multi target tracker. Since the JPDA filter is more computationally intensive than other algorithms (due to the combinatorial explosion of permutations of track/detection associations), this notebook prints the current simulation time being processed so that you can see that the algorithm is not "hanging".
+# With all the components in place, we'll now construct the tracker with a multi target tracker. 
 from stonesoup.updater.pointprocess import PHDUpdater
 from stonesoup.tracker.pointprocess import PointProcessMultiTargetTracker
 
@@ -198,12 +195,12 @@ for time, ctracks in tracker:
     tracks.update(ctracks)
 
 from stonesoup.metricgenerator.plotter import TwoDPlotter
+
 plotter = TwoDPlotter(track_indices=[0, 2], gtruth_indices=[0, 2], detection_indices=[0, 1])
 fig = plotter.plot_tracks_truth_detections(tracks, groundtruth, detections).value
 
 ax = fig.axes[0]
 ax.set_xlim([-30, 30])
 _ = ax.set_ylim([-30, 30])
-
 
 # %%
